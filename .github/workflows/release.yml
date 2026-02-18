@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       publish_admin:
-        description: "Publish @pincer/admin"
+        description: "Publish @pincerclaw/admin"
         required: true
         default: true
         type: boolean
       publish_agent:
-        description: "Publish @pincer/agent"
+        description: "Publish @pincerclaw/agent"
         required: true
         default: true
         type: boolean
       publish_shared:
-        description: "Publish @pincer/shared-types"
+        description: "Publish @pincerclaw/shared-types"
         required: true
         default: true
         type: boolean
@@ -50,20 +50,20 @@ jobs:
       - name: Validate
         run: npm run release:check
 
-      - name: Publish @pincer/shared-types
+      - name: Publish @pincerclaw/shared-types
         if: ${{ inputs.publish_shared }}
-        run: npm publish --workspace @pincer/shared-types --access public --provenance
+        run: npm publish --workspace @pincerclaw/shared-types --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @pincer/admin
+      - name: Publish @pincerclaw/admin
         if: ${{ inputs.publish_admin }}
-        run: npm publish --workspace @pincer/admin --access public --provenance
+        run: npm publish --workspace @pincerclaw/admin --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @pincer/agent
+      - name: Publish @pincerclaw/agent
         if: ${{ inputs.publish_agent }}
-        run: npm publish --workspace @pincer/agent --access public --provenance
+        run: npm publish --workspace @pincerclaw/agent --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

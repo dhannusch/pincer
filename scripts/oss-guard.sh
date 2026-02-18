@@ -29,11 +29,11 @@ is_tracked_prefix() {
 if [ ! -f "apps/pincer-worker/wrangler.toml.example" ]; then
   fail "Missing apps/pincer-worker/wrangler.toml.example."
 else
-  if ! rg -q 'replace-with-your-kv-namespace-id' apps/pincer-worker/wrangler.toml.example; then
+  if ! grep -q 'replace-with-your-kv-namespace-id' apps/pincer-worker/wrangler.toml.example; then
     fail "wrangler.toml.example must keep the placeholder KV namespace id."
   fi
 
-  if rg -n --pcre2 'id\\s*=\\s*"[a-f0-9]{32}"' apps/pincer-worker/wrangler.toml.example >/dev/null; then
+  if grep -qE 'id[[:space:]]*=[[:space:]]*"[a-f0-9]{32}"' apps/pincer-worker/wrangler.toml.example; then
     fail "wrangler.toml.example contains a concrete KV namespace id."
   fi
 fi
@@ -64,11 +64,11 @@ else
   fi
 fi
 
-if rg -n --pcre2 --glob '!**/node_modules/**' --glob '!.git/**' \
-  'api\\.cloudflare\\.com/client/v4/accounts/[a-f0-9]{32}' . >/dev/null; then
+if grep -rn --exclude-dir=node_modules --exclude-dir=.git \
+  -E 'api\.cloudflare\.com/client/v4/accounts/[a-f0-9]{32}' . >/dev/null 2>&1; then
   echo "Found hardcoded Cloudflare account ids in tracked source/docs:" >&2
-  rg -n --pcre2 --glob '!**/node_modules/**' --glob '!.git/**' \
-    'api\\.cloudflare\\.com/client/v4/accounts/[a-f0-9]{32}' . >&2
+  grep -rn --exclude-dir=node_modules --exclude-dir=.git \
+    -E 'api\.cloudflare\.com/client/v4/accounts/[a-f0-9]{32}' . >&2
   failures=1
 fi
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-import { createCanonicalString, hmacSha256Hex, sha256Hex } from "@pincer/shared-types";
+import { createCanonicalString, hmacSha256Hex, sha256Hex } from "@pincerclaw/shared-types";
 import { createApp } from "../src/index.js";
 import { pairingKvKey } from "../src/connect.js";
 

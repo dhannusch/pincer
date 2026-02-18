@@ -1,4 +1,4 @@
-import type { AdapterManifest } from "@pincer/shared-types";
+import type { AdapterManifest } from "@pincerclaw/shared-types";
 
 export type AdapterProposalSummary = {
   proposalId: string;

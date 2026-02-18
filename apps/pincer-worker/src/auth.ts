@@ -1,4 +1,4 @@
-import { constantTimeEqual, sha256Hex, verifySignedRequest } from "@pincer/shared-types";
+import { constantTimeEqual, sha256Hex, verifySignedRequest } from "@pincerclaw/shared-types";
 
 import { getRuntimeRecord, readSecretBinding } from "./config.js";
 import { getHeader } from "./http.js";

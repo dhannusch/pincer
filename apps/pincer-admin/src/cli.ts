@@ -19,7 +19,7 @@ import {
 } from "@clack/prompts";
 import pc from "picocolors";
 
-import { sha256Hex, validateAdapterManifest, type AdapterManifest } from "@pincer/shared-types";
+import { sha256Hex, validateAdapterManifest, type AdapterManifest } from "@pincerclaw/shared-types";
 import {
   buildPairingKvEntry,
   buildRuntimeKvRecord,

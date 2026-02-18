@@ -1,17 +1,17 @@
-# @pincer/shared-types
+# @pincerclaw/shared-types
 
 Shared auth helpers and adapter manifest validation utilities for Pincer.
 
 ## Exports
 
-- `@pincer/shared-types`
+- `@pincerclaw/shared-types`
   - Runtime signing helpers (`sha256Hex`, `hmacSha256Hex`, `verifySignedRequest`, etc.)
   - Manifest validation and input schema checks (`validateAdapterManifest`, `validateInputWithSchema`)
 
 ## Usage
 
 ```ts
-import { validateAdapterManifest } from "@pincer/shared-types";
+import { validateAdapterManifest } from "@pincerclaw/shared-types";
 
 const result = validateAdapterManifest(rawManifest);
 if (result.ok === false) {

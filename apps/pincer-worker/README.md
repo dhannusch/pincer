@@ -47,7 +47,7 @@ cp apps/pincer-worker/wrangler.toml.example apps/pincer-worker/wrangler.toml
 # Deploy/setup path
 pincer-admin setup
 
-npm --workspace @pincer/worker run dev
-npm --workspace @pincer/worker run deploy
-npm --workspace @pincer/worker run test
+npm --workspace @pincerclaw/worker run dev
+npm --workspace @pincerclaw/worker run deploy
+npm --workspace @pincerclaw/worker run test
 ```

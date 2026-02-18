@@ -11,7 +11,7 @@ import {
   sha256Hex,
   validateAdapterManifest,
   type AdapterManifest,
-} from "@pincer/shared-types";
+} from "@pincerclaw/shared-types";
 import { loadCredentials, writeCredentials, getCredentialsPath } from "./credentials.js";
 import { parseInputJson } from "./input.js";
 import { installSkill } from "./skill.js";
