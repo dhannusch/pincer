@@ -6,20 +6,38 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
 [![Node.js LTS](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js)](https://nodejs.org/)
-[![npm @pincerclaw/admin](https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincer%2Fadmin)](https://www.npmjs.com/package/@pincerclaw/admin)
-[![npm @pincerclaw/agent](https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincer%2Fagent)](https://www.npmjs.com/package/@pincerclaw/agent)
+[![npm @pincerclaw/admin](https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincerclaw%2Fadmin)](https://www.npmjs.com/package/@pincerclaw/admin)
+[![npm @pincerclaw/agent](https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincerclaw%2Fagent)](https://www.npmjs.com/package/@pincerclaw/agent)
 
 Pincer is a dynamic adapter boundary for OpenClaw, built on Cloudflare Workers.
 
 It lets OpenClaw agents call external APIs without storing provider API keys on the local machine. Adapters are manifest-driven, so agents can propose new integrations and humans can review/apply them.
 
-Repository: https://github.com/dhannusch/pincer
+## Table of Contents
+
+- [Why This Exists](#why-this-exists)
+- [Why Cloudflare Workers](#why-cloudflare-workers)
+- [How Components Are Distributed](#how-components-are-distributed)
+- [Prerequisites](#prerequisites)
+- [Quickstart](#quickstart)
+- [OpenClaw Prompt Examples](#openclaw-prompt-examples)
+- [Adapter Lifecycle](#adapter-lifecycle)
+- [Cloudflare Config Safety](#cloudflare-config-safety)
+- [Command Surface](#command-surface)
+- [Support Matrix](#support-matrix)
+- [Troubleshooting](#troubleshooting)
+- [Repository Layout](#repository-layout)
+- [Development](#development)
+- [Open Source Release Prep](#open-source-release-prep)
+- [Docs](#docs)
+- [Community](#community)
 
 ## Why This Exists
 
 OpenClaw agents are excellent at creating integration logic quickly. The hard part is keeping credentials and network permissions safe.
 
 Pincer separates concerns:
+
 - OpenClaw agent: creates/updates adapter manifests and submits proposals.
 - Human admin: approves and applies adapters, rotates secrets, disables risky adapters.
 - Worker boundary: enforces runtime auth, manifest validation, and outbound host controls.
@@ -29,6 +47,7 @@ Pincer separates concerns:
 Pincer is designed to run on Cloudflare Workers, including free-plan setups for early usage.
 
 Benefits:
+
 - No server management.
 - Global edge execution.
 - Worker Secrets for API credentials.
@@ -39,11 +58,13 @@ Benefits:
 Pincer is a monorepo.
 
 Published to npm:
+
 - `@pincerclaw/admin` (CLI: `pincer-admin`)
 - `@pincerclaw/agent` (CLI: `pincer-agent`)
 - `@pincerclaw/shared-types`
 
 Source-distributed in repo:
+
 - `apps/pincer-worker` (Cloudflare Worker deployment target)
 
 ## Prerequisites
@@ -62,47 +83,74 @@ npx wrangler login
 npx wrangler whoami
 ```
 
-## One-Command Bootstrap
-
-```bash
-npm run bootstrap
-```
-
-This installs dependencies, checks Wrangler auth, and links CLI commands.
-
 ## Quickstart
 
-### 1. Admin machine: setup
+### 1. Install the CLIs
+
+On your **admin machine**:
+
+```bash
+npm install -g @pincerclaw/admin
+```
+
+On your **OpenClaw host machine**:
+
+```bash
+npm install -g @pincerclaw/agent
+```
+
+### 2. Get the worker source
+
+The Cloudflare Worker is deployed from source. Clone the repo on your admin machine:
+
+```bash
+git clone https://github.com/dhannusch/pincer.git
+cd pincer
+```
+
+### 3. Verify Wrangler auth
+
+```bash
+npx wrangler whoami
+```
+
+If not logged in:
+
+```bash
+npx wrangler login
+```
+
+### 4. Run setup
 
 ```bash
 pincer-admin setup
 ```
 
-This bootstraps Cloudflare resources, deploys worker config, and prints a one-time pairing command.
-Run that command on your OpenClaw host machine.
+This bootstraps Cloudflare resources, deploys the worker, and prints a one-time pairing command. Run that command on your OpenClaw host machine.
 
-### 2. OpenClaw host: pair
+### 5. Pair the agent
+
+On your **OpenClaw host machine**:
 
 ```bash
 pincer-agent connect pincer-worker.example.workers.dev --code ABCD-1234
 ```
 
-This writes credentials to `~/.pincer/credentials.json` and installs the OpenClaw skill:
-- `~/.openclaw/skills/pincer/SKILL.md`
+This writes credentials to `~/.pincer/credentials.json` and installs the OpenClaw skill at `~/.openclaw/skills/pincer/SKILL.md`.
 
-### 3. OpenClaw/agent: propose adapter
+### 6. Propose an adapter
 
 ```bash
 pincer-agent adapters propose --file ./manifest.json
 ```
 
-For a ready local test manifest, use:
+For a ready local test manifest:
 
 ```bash
 pincer-agent adapters propose --file ./examples/httpbin.manifest.json
 ```
 
-### 4. Admin: review + apply
+### 7. Review and apply
 
 ```bash
 pincer-admin proposals list
@@ -110,7 +158,7 @@ pincer-admin proposals inspect <proposal-id>
 pincer-admin proposals approve <proposal-id>
 ```
 
-### 5. Call active adapter action
+### 8. Call an adapter
 
 ```bash
 pincer-agent call <adapter_id> <action_name> --input '{"key":"value"}'
@@ -163,6 +211,7 @@ pincer-admin adapters validate --file ./manifest.json
 ### 4. Update adapter behavior
 
 Re-apply with:
+
 - same `id`
 - higher `revision`
 
@@ -187,6 +236,7 @@ This rotates runtime key + HMAC material, prints a new pairing command, and imme
 ## Cloudflare Config Safety
 
 Pincer uses template-based Wrangler config:
+
 - tracked template: `apps/pincer-worker/wrangler.toml.example`
 - local generated config: `apps/pincer-worker/wrangler.toml`
 
@@ -224,6 +274,7 @@ export PINCER_WORKER_DIR=/path/to/pincer-worker
 ## Support Matrix
 
 Official initial support:
+
 - Node.js LTS
 - Linux and macOS
 
@@ -303,4 +354,4 @@ npm run smoke:clean
 
 ---
 
-Built by [Dennis Hannusch](https://dennishannusch.com) · [@dennishannusch](https://x.com/dennishannusch)
+Built by [Dennis Hannusch](https://dennishannusch.com) · [@dennishannusch](https://x.com/dennishannusch) · [pincer.run](https://pincer.run)

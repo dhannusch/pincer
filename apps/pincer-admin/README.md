@@ -1,10 +1,23 @@
 # pincer-admin
 
-`pincer-admin` is the setup, diagnostics, and adapter-management CLI.
+`pincer-admin` is the setup, diagnostics, and adapter-management CLI for [Pincer](https://github.com/dhannusch/pincer).
 
-## Fast Path
+## Installation
 
-Run from repository root:
+```bash
+npm install -g @pincerclaw/admin
+```
+
+## Quick Start
+
+```bash
+pincer-admin setup
+pincer-admin doctor
+```
+
+## From Source
+
+If running from the cloned repository:
 
 ```bash
 ./scripts/install-cli.sh

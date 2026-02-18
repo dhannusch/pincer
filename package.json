@@ -11,7 +11,7 @@
   "bugs": {
     "url": "https://github.com/dhannusch/pincer/issues"
   },
-  "homepage": "https://github.com/dhannusch/pincer#readme",
+  "homepage": "https://pincer.run",
   "description": "Lean Cloudflare Worker proxy boundary for OpenClaw adapters",
   "keywords": [
     "openclaw",
