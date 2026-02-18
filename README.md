@@ -1,5 +1,14 @@
 # Pincer
 
+[![CI](https://github.com/dhannusch/pincer/actions/workflows/ci.yml/badge.svg)](https://github.com/dhannusch/pincer/actions/workflows/ci.yml)
+[![Secret Scan](https://github.com/dhannusch/pincer/actions/workflows/secrets.yml/badge.svg)](https://github.com/dhannusch/pincer/actions/workflows/secrets.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
+[![Node.js LTS](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js)](https://nodejs.org/)
+[![npm @pincer/admin](https://img.shields.io/npm/v/@pincer/admin?label=%40pincer%2Fadmin)](https://www.npmjs.com/package/@pincer/admin)
+[![npm @pincer/agent](https://img.shields.io/npm/v/@pincer/agent?label=%40pincer%2Fagent)](https://www.npmjs.com/package/@pincer/agent)
+
 Pincer is a dynamic adapter boundary for OpenClaw, built on Cloudflare Workers.
 
 It lets OpenClaw agents call external APIs without storing provider API keys on the local machine. Adapters are manifest-driven, so agents can propose new integrations and humans can review/apply them.
@@ -291,3 +300,7 @@ npm run smoke:clean
 - Security policy: `SECURITY.md`
 - Support policy: `SUPPORT.md`
 - License: `LICENSE`
+
+---
+
+Built by [Dennis Hannusch](https://dennishannusch.com) · [@dennishannusch](https://x.com/dennishannusch)
