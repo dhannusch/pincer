@@ -6,8 +6,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
 [![Node.js LTS](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js)](https://nodejs.org/)
-[![npm @pincerclaw/admin](https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincer%2Fadmin)](https://www.npmjs.com/package/@pincerclaw/admin)
-[![npm @pincerclaw/agent](https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincer%2Fagent)](https://www.npmjs.com/package/@pincerclaw/agent)
+[![npm @pincerclaw/admin](https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincerclaw%2Fadmin)](https://www.npmjs.com/package/@pincerclaw/admin)
+[![npm @pincerclaw/agent](https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincerclaw%2Fagent)](https://www.npmjs.com/package/@pincerclaw/agent)
 
 Pincer is a dynamic adapter boundary for OpenClaw, built on Cloudflare Workers.
 
