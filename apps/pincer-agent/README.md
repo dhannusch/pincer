@@ -1,8 +1,14 @@
 # pincer-agent
 
-`pincer-agent` pairs with a deployed Pincer Worker, sends signed runtime calls, and submits adapter proposals.
+`pincer-agent` pairs with a deployed Pincer Worker, sends signed runtime calls, and submits adapter proposals. Part of [Pincer](https://github.com/dhannusch/pincer).
 
-## Fast Path
+## Installation
+
+```bash
+npm install -g @pincerclaw/agent
+```
+
+## Quick Start
 
 On the admin machine:
 

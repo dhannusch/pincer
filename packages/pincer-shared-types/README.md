@@ -1,6 +1,12 @@
 # @pincerclaw/shared-types
 
-Shared auth helpers and adapter manifest validation utilities for Pincer.
+Shared auth helpers and adapter manifest validation utilities for [Pincer](https://github.com/dhannusch/pincer).
+
+## Installation
+
+```bash
+npm install @pincerclaw/shared-types
+```
 
 ## Exports
 
