@@ -1,4 +1,4 @@
-import { validateInputWithSchema } from "@pincer/shared-types";
+import { validateInputWithSchema } from "@pincerclaw/shared-types";
 
 import { authenticateRuntimeRequest } from "./auth.js";
 import { getAdapterAction } from "./adapters/index.js";

@@ -31,7 +31,7 @@
     "pincer-admin": "tsx apps/pincer-admin/src/cli.ts",
     "pincer-agent": "tsx apps/pincer-agent/src/cli.ts",
     "bootstrap": "./scripts/bootstrap.sh",
-    "install:cli": "npm link --workspace @pincer/admin --workspace @pincer/agent",
+    "install:cli": "npm link --workspace @pincerclaw/admin --workspace @pincerclaw/agent",
     "oss:guard": "./scripts/oss-guard.sh",
     "secrets:scan": "./scripts/secrets-scan.sh working-tree",
     "secrets:scan:history": "./scripts/secrets-scan.sh history",

@@ -6,9 +6,9 @@ Repository: https://github.com/dhannusch/pincer
 
 ## Packages Published
 
-- `@pincer/admin`
-- `@pincer/agent`
-- `@pincer/shared-types`
+- `@pincerclaw/admin`
+- `@pincerclaw/agent`
+- `@pincerclaw/shared-types`
 
 Worker source is distributed via repository source.
 
@@ -41,9 +41,9 @@ Required secret:
 ## Local Manual Publish (fallback)
 
 ```bash
-npm publish --workspace @pincer/shared-types --access public
-npm publish --workspace @pincer/admin --access public
-npm publish --workspace @pincer/agent --access public
+npm publish --workspace @pincerclaw/shared-types --access public
+npm publish --workspace @pincerclaw/admin --access public
+npm publish --workspace @pincerclaw/agent --access public
 ```
 
 ## Post-Release

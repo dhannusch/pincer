@@ -6,8 +6,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
 [![Node.js LTS](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js)](https://nodejs.org/)
-[![npm @pincer/admin](https://img.shields.io/npm/v/@pincer/admin?label=%40pincer%2Fadmin)](https://www.npmjs.com/package/@pincer/admin)
-[![npm @pincer/agent](https://img.shields.io/npm/v/@pincer/agent?label=%40pincer%2Fagent)](https://www.npmjs.com/package/@pincer/agent)
+[![npm @pincerclaw/admin](https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincer%2Fadmin)](https://www.npmjs.com/package/@pincerclaw/admin)
+[![npm @pincerclaw/agent](https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincer%2Fagent)](https://www.npmjs.com/package/@pincerclaw/agent)
 
 Pincer is a dynamic adapter boundary for OpenClaw, built on Cloudflare Workers.
 
@@ -39,9 +39,9 @@ Benefits:
 Pincer is a monorepo.
 
 Published to npm:
-- `@pincer/admin` (CLI: `pincer-admin`)
-- `@pincer/agent` (CLI: `pincer-agent`)
-- `@pincer/shared-types`
+- `@pincerclaw/admin` (CLI: `pincer-admin`)
+- `@pincerclaw/agent` (CLI: `pincer-agent`)
+- `@pincerclaw/shared-types`
 
 Source-distributed in repo:
 - `apps/pincer-worker` (Cloudflare Worker deployment target)

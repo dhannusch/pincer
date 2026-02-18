@@ -3,7 +3,7 @@ import {
   validateAdapterManifest,
   type AdapterManifest,
   type AdapterManifestAction,
-} from "@pincer/shared-types";
+} from "@pincerclaw/shared-types";
 
 import type { WorkerEnv } from "../types.js";
 import type {

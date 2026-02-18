@@ -1,5 +1,5 @@
 {
-  "name": "@pincer/worker",
+  "name": "@pincerclaw/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,7 +20,7 @@
     "test": "node --loader tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@pincer/shared-types": "0.1.0"
+    "@pincerclaw/shared-types": "0.1.0"
   },
   "devDependencies": {
     "wrangler": "^4.65.0"
