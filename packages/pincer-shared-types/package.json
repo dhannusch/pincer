@@ -1,0 +1,29 @@
+{
+  "name": "@pincer/shared-types",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhannusch/pincer.git",
+    "directory": "packages/pincer-shared-types"
+  },
+  "bugs": {
+    "url": "https://github.com/dhannusch/pincer/issues"
+  },
+  "homepage": "https://github.com/dhannusch/pincer/tree/main/packages/pincer-shared-types#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "package.json"
+  ],
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth.ts",
+    "./manifest": "./src/manifest.ts"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@pincer/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhannusch/pincer.git",
+    "directory": "apps/pincer-worker"
+  },
+  "bugs": {
+    "url": "https://github.com/dhannusch/pincer/issues"
+  },
+  "homepage": "https://github.com/dhannusch/pincer/tree/main/apps/pincer-worker#readme",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --loader tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@pincer/shared-types": "0.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.65.0"
+  }
+}

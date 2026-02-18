@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Pincer P Lettermark</title>
+  <desc id="desc">Abstract P letterform built from a lobster pincer curve in a minimal geometric style.</desc>
+  <g fill="none" stroke="currentColor" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M150 416V96" />
+    <path d="M150 128C253 128 330 185 330 256C330 327 253 384 150 384" />
+    <path d="M288 206L366 172" />
+    <path d="M288 306L366 340" />
+  </g>
+</svg>

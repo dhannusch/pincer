@@ -1,0 +1,33 @@
+{
+  "name": "@pincer/agent",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhannusch/pincer.git",
+    "directory": "apps/pincer-agent"
+  },
+  "bugs": {
+    "url": "https://github.com/dhannusch/pincer/issues"
+  },
+  "homepage": "https://github.com/dhannusch/pincer/tree/main/apps/pincer-agent#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "package.json"
+  ],
+  "bin": {
+    "pincer-agent": "bin/pincer-agent.mjs"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.10.1",
+    "@pincer/shared-types": "0.1.0",
+    "picocolors": "^1.1.1",
+    "tsx": "^4.20.5"
+  }
+}

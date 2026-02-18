@@ -1,0 +1,8 @@
+node_modules/
+.claude/
+.pincer/
+.DS_Store
+*.log
+.wrangler-logs/
+apps/pincer-worker/wrangler.toml
+apps/pincer-worker/.wrangler/

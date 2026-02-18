@@ -1,0 +1,17 @@
+name = "pincer-worker"
+main = "src/index.ts"
+compatibility_date = "2026-02-15"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+PINCER_SKEW_SECONDS = "60"
+
+[[kv_namespaces]]
+binding = "PINCER_CONFIG_KV"
+id = "replace-with-your-kv-namespace-id"
+
+# Optional metrics dataset.
+# Uncomment and set if you want Analytics Engine export in addition to in-memory metrics snapshots.
+# [[analytics_engine_datasets]]
+# binding = "PINCER_METRICS"
+# dataset = "replace-with-your-analytics-dataset"

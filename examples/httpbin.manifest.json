@@ -1,0 +1,42 @@
+{
+  "id": "httpbin",
+  "revision": 1,
+  "baseUrl": "https://httpbin.org",
+  "allowedHosts": [
+    "httpbin.org"
+  ],
+  "requiredSecrets": [
+    "HTTPBIN_TOKEN"
+  ],
+  "actions": {
+    "echo_get": {
+      "method": "GET",
+      "path": "/anything",
+      "requestMode": "query",
+      "auth": {
+        "placement": "query",
+        "name": "token",
+        "secretBinding": "HTTPBIN_TOKEN"
+      },
+      "limits": {
+        "maxBodyKb": 16,
+        "timeoutMs": 10000,
+        "ratePerMinute": 120
+      },
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    }
+  }
+}

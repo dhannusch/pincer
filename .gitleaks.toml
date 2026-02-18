@@ -1,0 +1,9 @@
+[allowlist]
+description = "Ignore local runtime artifacts that are gitignored and machine-local."
+paths = [
+  '''^\.wrangler-logs/''',
+  '''^apps/pincer-worker/\.wrangler/''',
+  '''^\.pincer/''',
+  '''^\.claude/''',
+  '''^node_modules/'''
+]

@@ -1,0 +1,13 @@
+# Local development values for `wrangler dev`.
+# Keep real secrets out of source control.
+
+# Required
+PINCER_ADMIN_PASSPHRASE=
+PINCER_HMAC_SECRET_ACTIVE=
+GOOGLE_API_TOKEN=
+YOUTUBE_API_KEY=
+X_BEARER_TOKEN=
+
+# Optional — only needed if Cloudflare Access is enabled (setup --with-access)
+# PINCER_ACCESS_CLIENT_ID=
+# PINCER_ACCESS_CLIENT_SECRET=

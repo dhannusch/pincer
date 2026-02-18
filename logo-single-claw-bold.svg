@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Bold Single Claw</title>
+  <desc id="desc">Minimal profile of a lobster claw reduced to a few bold geometric shapes.</desc>
+  <g fill="currentColor">
+    <rect x="56" y="250" width="224" height="112" rx="56" />
+    <path d="M246 264C280 184 364 130 450 146C418 180 398 225 394 274C338 280 285 280 246 264Z" />
+    <path d="M246 346C286 332 342 332 396 338C394 389 413 432 444 462C356 474 272 426 246 346Z" />
+    <circle cx="228" cy="306" r="32" />
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Continuous Line Pincer</title>
+  <desc id="desc">Minimal lobster pincer drawn as one continuous modern line.</desc>
+  <path
+    d="M84 340C126 390 203 406 273 384C339 362 386 316 396 260C403 223 425 192 456 180C424 166 388 168 360 187C331 208 312 241 307 277C301 317 273 350 232 365C193 379 146 368 112 336C84 308 82 270 108 244C133 219 171 219 196 243C220 266 220 307 198 329"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

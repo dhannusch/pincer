@@ -1,0 +1,293 @@
+# Pincer
+
+Pincer is a dynamic adapter boundary for OpenClaw, built on Cloudflare Workers.
+
+It lets OpenClaw agents call external APIs without storing provider API keys on the local machine. Adapters are manifest-driven, so agents can propose new integrations and humans can review/apply them.
+
+Repository: https://github.com/dhannusch/pincer
+
+## Why This Exists
+
+OpenClaw agents are excellent at creating integration logic quickly. The hard part is keeping credentials and network permissions safe.
+
+Pincer separates concerns:
+- OpenClaw agent: creates/updates adapter manifests and submits proposals.
+- Human admin: approves and applies adapters, rotates secrets, disables risky adapters.
+- Worker boundary: enforces runtime auth, manifest validation, and outbound host controls.
+
+## Why Cloudflare Workers
+
+Pincer is designed to run on Cloudflare Workers, including free-plan setups for early usage.
+
+Benefits:
+- No server management.
+- Global edge execution.
+- Worker Secrets for API credentials.
+- Workers KV for runtime and adapter registry state.
+
+## How Components Are Distributed
+
+Pincer is a monorepo.
+
+Published to npm:
+- `@pincer/admin` (CLI: `pincer-admin`)
+- `@pincer/agent` (CLI: `pincer-agent`)
+- `@pincer/shared-types`
+
+Source-distributed in repo:
+- `apps/pincer-worker` (Cloudflare Worker deployment target)
+
+## Prerequisites
+
+- Cloudflare account.
+- Node.js LTS (20.x+ recommended).
+- npm.
+- Wrangler authenticated in your Cloudflare account.
+- OpenClaw host machine for `pincer-agent`.
+
+Wrangler check:
+
+```bash
+npx wrangler --version
+npx wrangler login
+npx wrangler whoami
+```
+
+## One-Command Bootstrap
+
+```bash
+npm run bootstrap
+```
+
+This installs dependencies, checks Wrangler auth, and links CLI commands.
+
+## Quickstart
+
+### 1. Admin machine: setup
+
+```bash
+pincer-admin setup
+```
+
+This bootstraps Cloudflare resources, deploys worker config, and prints a one-time pairing command.
+Run that command on your OpenClaw host machine.
+
+### 2. OpenClaw host: pair
+
+```bash
+pincer-agent connect pincer-worker.example.workers.dev --code ABCD-1234
+```
+
+This writes credentials to `~/.pincer/credentials.json` and installs the OpenClaw skill:
+- `~/.openclaw/skills/pincer/SKILL.md`
+
+### 3. OpenClaw/agent: propose adapter
+
+```bash
+pincer-agent adapters propose --file ./manifest.json
+```
+
+For a ready local test manifest, use:
+
+```bash
+pincer-agent adapters propose --file ./examples/httpbin.manifest.json
+```
+
+### 4. Admin: review + apply
+
+```bash
+pincer-admin proposals list
+pincer-admin proposals inspect <proposal-id>
+pincer-admin proposals approve <proposal-id>
+```
+
+### 5. Call active adapter action
+
+```bash
+pincer-agent call <adapter_id> <action_name> --input '{"key":"value"}'
+```
+
+## OpenClaw Prompt Examples
+
+You can prompt OpenClaw with instructions like:
+
+- "Create a Pincer adapter manifest for Stripe and save it as `stripe.manifest.json`."
+- "Submit this manifest as a Pincer proposal."
+- "Update the Stripe adapter to revision 2 and add an endpoint for invoices."
+
+The installed skill teaches the exact commands and update flow.
+
+## Adapter Lifecycle
+
+### 1. Propose
+
+```bash
+pincer-agent adapters propose --file ./manifest.json
+```
+
+### 2. Review
+
+```bash
+pincer-admin proposals list
+pincer-admin proposals inspect <proposal-id>
+```
+
+### 3. Apply
+
+Pick exactly one source:
+
+```bash
+pincer-admin proposals approve <proposal-id>
+pincer-admin adapters apply --file ./manifest.json
+pincer-admin adapters apply --url https://example.com/manifest.json
+```
+
+`apply` validates manifests and prompts for confirmation by default (`--force` skips confirmation).
+
+Validate manifests offline before proposing/applying:
+
+```bash
+pincer-agent adapters validate --file ./manifest.json
+pincer-admin adapters validate --file ./manifest.json
+```
+
+### 4. Update adapter behavior
+
+Re-apply with:
+- same `id`
+- higher `revision`
+
+Use this for API spec changes, endpoint additions/removals, and limits/auth updates.
+
+### 5. Rotate API keys
+
+```bash
+pincer-admin adapters secret set <SECRET_BINDING>
+```
+
+No manifest revision bump is required for secret rotation alone.
+
+### 6. Rotate runtime credentials (incident response)
+
+```bash
+pincer-admin credentials rotate
+```
+
+This rotates runtime key + HMAC material, prints a new pairing command, and immediately invalidates previously issued runtime credentials.
+
+## Cloudflare Config Safety
+
+Pincer uses template-based Wrangler config:
+- tracked template: `apps/pincer-worker/wrangler.toml.example`
+- local generated config: `apps/pincer-worker/wrangler.toml`
+
+The local config is gitignored so account-specific IDs are not committed.
+
+If your worker directory is not `apps/pincer-worker`, set:
+
+```bash
+export PINCER_WORKER_DIR=/path/to/pincer-worker
+```
+
+## Command Surface
+
+- `pincer-admin setup`
+- `pincer-admin pairing generate`
+- `pincer-admin credentials rotate`
+- `pincer-admin doctor [--json]`
+- `pincer-admin proposals list [--json]`
+- `pincer-admin proposals inspect <proposal-id> [--json]`
+- `pincer-admin proposals approve <proposal-id> [--force]`
+- `pincer-admin proposals reject <proposal-id> [--reason "..."]`
+- `pincer-admin audit list [--limit <n>] [--since <iso>] [--json]`
+- `pincer-admin adapters list [--json]`
+- `pincer-admin adapters apply (--file <path> | --url <url>) [--force]`
+- `pincer-admin adapters validate --file <path> [--json]`
+- `pincer-admin adapters disable <adapter-id>`
+- `pincer-admin adapters enable <adapter-id>`
+- `pincer-admin adapters secret set <binding> [--worker-name <name>]`
+- `pincer-agent connect <worker-host> --code <CODE>`
+- `pincer-agent call <adapter> <action> [--input '<json>' | --input-file <path>]`
+- `pincer-agent adapters list [--json]`
+- `pincer-agent adapters validate --file <path> [--json]`
+- `pincer-agent adapters propose (--manifest '<json>' | --file <path>)`
+
+## Support Matrix
+
+Official initial support:
+- Node.js LTS
+- Linux and macOS
+
+Windows is best-effort until explicitly promoted.
+
+## Troubleshooting
+
+- `Request failed (401/403)`
+  - Run `pincer-admin doctor`.
+  - Confirm runtime key/HMAC and admin passphrase.
+- `missing_required_secrets` during apply
+  - Set missing bindings via `pincer-admin adapters secret set <binding>`.
+- `No credentials found`
+  - Run `pincer-agent connect <worker-host> --code <CODE>`.
+- `invalid_or_expired_code` during connect
+  - Use the latest code printed by `pincer-admin setup` or `pincer-admin pairing generate`.
+  - Pairing codes are one-time use.
+  - Run the connect command on your OpenClaw host machine.
+
+## Repository Layout
+
+- `apps/pincer-worker` - Cloudflare Worker runtime boundary
+- `apps/pincer-admin` - admin CLI
+- `apps/pincer-agent` - agent CLI
+- `packages/pincer-shared-types` - shared auth/manifest types
+- `docs/` - architecture, security, deployment, release docs
+
+## Development
+
+```bash
+npm run typecheck
+npm test
+```
+
+## Open Source Release Prep
+
+Run guardrails before pushing:
+
+```bash
+npm run oss:guard
+npm run release:check
+```
+
+Run secret scans:
+
+```bash
+npm run secrets:scan            # working tree
+npm run secrets:scan:history    # git history (requires gitleaks + git repo)
+```
+
+`secrets:scan*` requires local `gitleaks` installation.
+
+Run clean-machine smoke prep:
+
+```bash
+npm run smoke:clean
+```
+
+## Docs
+
+- Architecture: `docs/architecture.md`
+- Security model: `docs/security.md`
+- OpenClaw integration: `docs/openclaw-integration.md`
+- Deployment details: `docs/deployment.md`
+- Release process: `docs/release.md`
+- OSS release checklist: `docs/open-source-checklist.md`
+- Project roadmap: `docs/roadmap.md`
+- Changelog: `CHANGELOG.md`
+
+## Community
+
+- Contribution guide: `CONTRIBUTING.md`
+- Code of conduct: `CODE_OF_CONDUCT.md`
+- Security policy: `SECURITY.md`
+- Support policy: `SUPPORT.md`
+- License: `LICENSE`
