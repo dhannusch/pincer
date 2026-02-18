@@ -390,6 +390,12 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
 
+  if (command === "--version" || command === "-v") {
+    const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    console.log(pkg.version);
+    return;
+  }
+
   if (!command || command === "--help" || command === "help") {
     printUsage();
     return;
