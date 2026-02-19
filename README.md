@@ -1,13 +1,21 @@
-# Pincer
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-light.png" />
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo.png" />
+    <img src="assets/logo.png" alt="Pincer" width="320" />
+  </picture>
+</p>
 
-[![CI](https://github.com/dhannusch/pincer/actions/workflows/ci.yml/badge.svg)](https://github.com/dhannusch/pincer/actions/workflows/ci.yml)
-[![Secret Scan](https://github.com/dhannusch/pincer/actions/workflows/secrets.yml/badge.svg)](https://github.com/dhannusch/pincer/actions/workflows/secrets.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Runs on Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
-[![Node.js LTS](https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js)](https://nodejs.org/)
-[![npm @pincerclaw/admin](https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincerclaw%2Fadmin)](https://www.npmjs.com/package/@pincerclaw/admin)
-[![npm @pincerclaw/agent](https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincerclaw%2Fagent)](https://www.npmjs.com/package/@pincerclaw/agent)
+<p align="center">
+  <a href="https://github.com/dhannusch/pincer/actions/workflows/ci.yml"><img src="https://github.com/dhannusch/pincer/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/dhannusch/pincer/actions/workflows/secrets.yml"><img src="https://github.com/dhannusch/pincer/actions/workflows/secrets.yml/badge.svg" alt="Secret Scan" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript" alt="TypeScript" /></a>
+  <a href="https://workers.cloudflare.com/"><img src="https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare" alt="Runs on Cloudflare Workers" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-LTS-339933?logo=node.js" alt="Node.js LTS" /></a>
+  <a href="https://www.npmjs.com/package/@pincerclaw/admin"><img src="https://img.shields.io/npm/v/@pincerclaw/admin?label=%40pincerclaw%2Fadmin" alt="npm @pincerclaw/admin" /></a>
+  <a href="https://www.npmjs.com/package/@pincerclaw/agent"><img src="https://img.shields.io/npm/v/@pincerclaw/agent?label=%40pincerclaw%2Fagent" alt="npm @pincerclaw/agent" /></a>
+</p>
 
 Pincer is a dynamic adapter boundary for OpenClaw, built on Cloudflare Workers.
 
@@ -15,13 +23,28 @@ It lets OpenClaw agents call external APIs without storing provider API keys on 
 
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Why This Exists](#why-this-exists)
 - [Why Cloudflare Workers](#why-cloudflare-workers)
 - [How Components Are Distributed](#how-components-are-distributed)
 - [Prerequisites](#prerequisites)
 - [Quickstart](#quickstart)
+  - [1. Install the CLIs](#1-install-the-clis)
+  - [2. Get the worker source](#2-get-the-worker-source)
+  - [3. Verify Wrangler auth](#3-verify-wrangler-auth)
+  - [4. Run setup](#4-run-setup)
+  - [5. Pair the agent](#5-pair-the-agent)
+  - [6. Propose an adapter](#6-propose-an-adapter)
+  - [7. Review and apply](#7-review-and-apply)
+  - [8. Call an adapter](#8-call-an-adapter)
 - [OpenClaw Prompt Examples](#openclaw-prompt-examples)
 - [Adapter Lifecycle](#adapter-lifecycle)
+  - [1. Propose](#1-propose)
+  - [2. Review](#2-review)
+  - [3. Apply](#3-apply)
+  - [4. Update adapter behavior](#4-update-adapter-behavior)
+  - [5. Rotate API keys](#5-rotate-api-keys)
+  - [6. Rotate runtime credentials (incident response)](#6-rotate-runtime-credentials-incident-response)
 - [Cloudflare Config Safety](#cloudflare-config-safety)
 - [Command Surface](#command-surface)
 - [Support Matrix](#support-matrix)
