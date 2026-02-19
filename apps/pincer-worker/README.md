@@ -7,7 +7,7 @@ Cloudflare Worker runtime boundary for manifest-driven adapter calls.
 - Adapter definitions are loaded from KV manifest registry.
 - Runtime auth is enforced by bearer runtime key + HMAC signature.
 - Non-secret config is read from Workers KV (`PINCER_CONFIG_KV`).
-- Secret values are read from Worker secrets.
+- Secret values resolve from encrypted KV vault first, then Worker secret fallback.
 - Cloudflare config is generated from `wrangler.toml.example` into local `wrangler.toml`.
 
 ## KV Keys
@@ -19,14 +19,30 @@ Cloudflare Worker runtime boundary for manifest-driven adapter calls.
 - `adapter_registry:manifest:<adapterId>:<revision>`
 - `audit:proposal:<occurredAt>:<eventId>`
 - `pairing:<CODE>`
+- `admin:user:primary`
+- `admin:session:<sessionId>`
+- `admin:login:<username>:<clientId>`
+- `vault:secret:<binding>`
 
 ## Endpoints
 
 - `GET /v1/health`
+- `GET /admin`
+- `GET /admin/bootstrap`
 - `POST /v1/connect`
 - `GET /v1/adapters`
 - `POST /v1/adapters/proposals`
 - `POST /v1/adapter/:adapter/:action`
+- `GET /v1/admin/bootstrap`
+- `POST /v1/admin/bootstrap`
+- `POST /v1/admin/session/login`
+- `POST /v1/admin/session/logout`
+- `GET /v1/admin/session/me`
+- `GET /v1/admin/secrets`
+- `PUT /v1/admin/secrets/:binding`
+- `DELETE /v1/admin/secrets/:binding`
+- `POST /v1/admin/runtime/rotate`
+- `POST /v1/admin/pairing/generate`
 - `GET /v1/admin/doctor`
 - `GET /v1/admin/metrics`
 - `GET /v1/admin/adapters/proposals`

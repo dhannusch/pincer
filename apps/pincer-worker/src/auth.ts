@@ -1,8 +1,9 @@
 import { constantTimeEqual, sha256Hex, verifySignedRequest } from "@pincerclaw/shared-types";
 
-import { getRuntimeRecord, readSecretBinding } from "./config.js";
+import { getRuntimeRecord } from "./config.js";
 import { getHeader } from "./http.js";
 import type { RuntimeAuthResult, WorkerEnv } from "./types.js";
+import { resolveSecretValue } from "./vault.js";
 
 type ParsedBearer = {
   keyId: string;
@@ -29,20 +30,6 @@ function parseBearer(authorizationHeader: string): ParsedBearer | null {
     keyId,
     keySecret,
   };
-}
-
-export function extractAdminAuth(request: Request): string {
-  return getHeader(request, "x-pincer-admin-passphrase");
-}
-
-export function isAdminAuthorized(request: Request, env: WorkerEnv): boolean {
-  const expected = env.PINCER_ADMIN_PASSPHRASE;
-  if (!expected || typeof expected !== "string") {
-    return false;
-  }
-
-  const provided = extractAdminAuth(request);
-  return constantTimeEqual(provided, expected);
 }
 
 export async function authenticateRuntimeRequest(
@@ -72,7 +59,7 @@ export async function authenticateRuntimeRequest(
     return { ok: false, reason: "invalid_runtime_key", status: 401 };
   }
 
-  const hmacSecret = readSecretBinding(env, runtime.hmacSecretBinding);
+  const hmacSecret = await resolveSecretValue(env, runtime.hmacSecretBinding);
   if (!hmacSecret) {
     return { ok: false, reason: "missing_hmac_secret", status: 500 };
   }

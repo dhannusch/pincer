@@ -8,22 +8,27 @@
 
 ## Configuration Model
 
-Pincer uses KV for non-secret config and Worker Secrets for sensitive values.
+Pincer uses KV for config/session/vault state and Worker Secrets for bootstrap + fallback secret bindings.
 
 ### KV keys
 
 - `meta:version`: config version string.
-- `runtime:active`: runtime auth metadata (key hash, HMAC binding, skew).
+- `runtime:active`: runtime auth metadata (key hash, key-secret binding, HMAC binding, skew).
 - `adapter_registry:index`: adapter registry index (`proposals` + `active`).
 - `adapter_registry:proposal:<proposalId>`: pending proposal record + manifest.
 - `adapter_registry:manifest:<adapterId>:<revision>`: immutable manifest snapshots.
 - `pairing:<CODE>`: one-time pairing credentials.
+- `admin:user:primary`: single admin account metadata.
+- `admin:session:<sessionId>`: session records (cookie auth + CSRF).
+- `admin:login:<username>:<clientId>`: login lockout/backoff counters.
+- `vault:secret:<binding>`: encrypted write-only secret entries.
 
 ### Worker secrets (required)
 
-- `PINCER_ADMIN_PASSPHRASE`
-- runtime HMAC binding (default: `PINCER_HMAC_SECRET_ACTIVE`)
-- adapter-specific secret bindings declared in each manifest (`requiredSecrets`)
+- `PINCER_BOOTSTRAP_TOKEN`
+- `PINCER_VAULT_KEK`
+- runtime fallback secret bindings (defaults: `PINCER_HMAC_SECRET_ACTIVE`, `PINCER_RUNTIME_KEY_SECRET_ACTIVE`)
+- optional adapter fallback secret bindings declared in manifests (`requiredSecrets`)
 
 ## Request Flow
 
@@ -57,8 +62,9 @@ If `revision` is unchanged, content must also be unchanged.
 
 ## Pairing Flow
 
-1. `pincer-admin setup` generates runtime credentials and one-time pairing code.
-2. Pairing code + credentials are stored in KV.
-3. `pincer-agent connect <host> --code <CODE>` exchanges the code for credentials.
-4. Worker deletes the pairing record after first use.
-5. Agent saves credentials to `~/.pincer/credentials.json` and installs the OpenClaw skill.
+1. `pincer-admin setup` deploys worker resources and prints `/admin/bootstrap` instructions.
+2. Admin bootstraps first account in `/admin/bootstrap`.
+3. Admin generates pairing code in UI or `pincer-admin pairing generate`.
+4. Worker stores one-time pairing credentials in KV.
+5. `pincer-agent connect <host> --code <CODE>` exchanges the code for credentials.
+6. Worker deletes pairing record after first use.

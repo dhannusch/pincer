@@ -4,6 +4,7 @@ export type RuntimeKeyRecord = {
   id: string;
   keyHash: string;
   hmacSecretBinding: string;
+  keySecretBinding: string;
   skewSeconds?: number;
   updatedAt?: string;
 };
@@ -30,7 +31,8 @@ export type KvNamespaceBinding = {
 export type WorkerEnv = {
   PINCER_CONFIG_KV?: KvNamespaceBinding;
   PINCER_SKEW_SECONDS?: string;
-  PINCER_ADMIN_PASSPHRASE?: string;
+  PINCER_BOOTSTRAP_TOKEN?: string;
+  PINCER_VAULT_KEK?: string;
   PINCER_METRICS?: MetricsBinding;
   [key: string]: unknown;
 };

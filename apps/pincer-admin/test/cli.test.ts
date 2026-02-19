@@ -39,7 +39,7 @@ test("adapters secret without subcommand prints secret usage", () => {
   const result = runCli(["adapters", "secret"]);
 
   assert.equal(result.status, 1);
-  assert.match(outputFor(result), /Usage: pincer-admin adapters secret set <binding> \[--worker-name <name>\]/);
+  assert.match(outputFor(result), /Usage: pincer-admin adapters secret set <binding>/);
 });
 
 test("doctor fails fast in non-interactive mode when worker URL is missing", () => {
@@ -48,7 +48,8 @@ test("doctor fails fast in non-interactive mode when worker URL is missing", () 
     const result = runCli(["doctor"], {
       HOME: home,
       PINCER_WORKER_URL: "",
-      PINCER_ADMIN_PASSPHRASE: "test-passphrase",
+      PINCER_ADMIN_USERNAME: "admin",
+      PINCER_ADMIN_PASSWORD: "test-password",
     });
     assert.equal(result.status, 1);
     assert.match(outputFor(result), /Worker URL is required in non-interactive mode\./);
@@ -65,7 +66,8 @@ test("doctor uses saved profile worker URL when env URL is unset", () => {
     const result = runCli(["doctor", "--json"], {
       HOME: home,
       PINCER_WORKER_URL: "",
-      PINCER_ADMIN_PASSPHRASE: "test-passphrase",
+      PINCER_ADMIN_USERNAME: "admin",
+      PINCER_ADMIN_PASSWORD: "test-password",
     });
 
     assert.equal(result.status, 1);
@@ -84,7 +86,8 @@ test("doctor prefers PINCER_WORKER_URL over saved profile worker URL", () => {
     const result = runCli(["doctor"], {
       HOME: home,
       PINCER_WORKER_URL: "not-a-url",
-      PINCER_ADMIN_PASSPHRASE: "test-passphrase",
+      PINCER_ADMIN_USERNAME: "admin",
+      PINCER_ADMIN_PASSWORD: "test-password",
     });
 
     assert.equal(result.status, 1);
@@ -101,7 +104,8 @@ test("doctor persists workerName from PINCER_WORKER_NAME", () => {
       HOME: home,
       PINCER_WORKER_URL: "https://127.0.0.1:9",
       PINCER_WORKER_NAME: "pincer-from-env",
-      PINCER_ADMIN_PASSPHRASE: "test-passphrase",
+      PINCER_ADMIN_USERNAME: "admin",
+      PINCER_ADMIN_PASSWORD: "test-password",
     });
 
     const profilePath = path.join(home, ".pincer", "admin.json");
@@ -121,7 +125,8 @@ test("doctor infers and persists workerName from workers.dev URL", () => {
       HOME: home,
       PINCER_WORKER_URL: "https://pincer-inferred.workers.dev",
       PINCER_WORKER_NAME: "",
-      PINCER_ADMIN_PASSPHRASE: "test-passphrase",
+      PINCER_ADMIN_USERNAME: "admin",
+      PINCER_ADMIN_PASSWORD: "test-password",
     });
 
     const profilePath = path.join(home, ".pincer", "admin.json");
@@ -129,6 +134,22 @@ test("doctor infers and persists workerName from workers.dev URL", () => {
       workerName?: string;
     };
     assert.equal(profile.workerName, "pincer-inferred");
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("doctor fails fast in non-interactive mode when admin username is missing", () => {
+  const home = createTempHome();
+  try {
+    const result = runCli(["doctor"], {
+      HOME: home,
+      PINCER_WORKER_URL: "https://127.0.0.1:9",
+      PINCER_ADMIN_USERNAME: "",
+      PINCER_ADMIN_PASSWORD: "test-password",
+    });
+    assert.equal(result.status, 1);
+    assert.match(outputFor(result), /Admin username is required in non-interactive mode/);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }

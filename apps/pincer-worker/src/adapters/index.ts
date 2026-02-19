@@ -6,6 +6,7 @@ import {
 } from "@pincerclaw/shared-types";
 
 import type { WorkerEnv } from "../types.js";
+import { resolveSecretValue } from "../vault.js";
 import type {
   AdapterProposalRecord,
   AdapterProposalSummary,
@@ -20,7 +21,7 @@ const REGISTRY_INDEX_KEY = "adapter_registry:index";
 const PROPOSAL_AUDIT_KEY_PREFIX = "audit:proposal:";
 const CACHE_TTL_MS = 10_000;
 
-// TODO: Keep this cache shape aligned with config.ts or extract a shared helper.
+// Keep this cache shape aligned with config.ts.
 const registryCache: {
   loadedAtMs: number;
   kvRef: unknown;
@@ -82,15 +83,6 @@ function ensureKv(env: WorkerEnv) {
   }
 
   return kv;
-}
-
-function readSecretBinding(env: WorkerEnv, bindingName: string): string {
-  if (!bindingName || typeof bindingName !== "string") {
-    return "";
-  }
-
-  const value = env[bindingName];
-  return typeof value === "string" ? value : "";
 }
 
 function manifestKvKey(adapterId: string, revision: number): string {
@@ -694,9 +686,12 @@ export async function applyAdapterManifest(
     }
   }
 
-  const missingSecrets = manifest.requiredSecrets.filter(
-    (bindingName) => readSecretBinding(env, bindingName).length === 0
-  );
+  const missingSecrets: string[] = [];
+  for (const bindingName of manifest.requiredSecrets) {
+    if ((await resolveSecretValue(env, bindingName)).length === 0) {
+      missingSecrets.push(bindingName);
+    }
+  }
 
   if (missingSecrets.length > 0) {
     return {

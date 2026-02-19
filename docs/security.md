@@ -40,7 +40,7 @@ At runtime:
 
 - Worker sanitizes internal error output.
 - Pairing codes are one-time use.
-- Admin endpoints require admin passphrase.
+- Admin endpoints require session cookie auth plus CSRF for state-changing requests.
 - Proposal lifecycle events are persisted to KV audit records (`proposal_submitted`, `proposal_approved`, `proposal_rejected`).
 
 ## Pairing Code Security
@@ -53,7 +53,5 @@ It is protected by:
 
 ## Documented Trade-offs
 
-- Admin passphrase auth is static-header based and does not include replay protection in v1.
 - In-memory metrics snapshots are isolate-local and reset on worker lifecycle events.
-- `~/.pincer/admin.json` stores runtime pairing material (`runtimeKey`, `runtimeHmacSecret`) so `pincer-admin pairing generate` can mint new one-time codes without credential rotation.
-- `~/.pincer/credentials.json` (agent host) and `~/.pincer/admin.json` (admin host) are both sensitive and should be protected as secrets (host hardening, restricted access, careful backup handling).
+- `~/.pincer/credentials.json` (agent host) and admin credential env vars on the admin host are sensitive and should be protected as secrets.

@@ -41,15 +41,17 @@ export PINCER_WORKER_DIR=/path/to/pincer-worker
 
 Admin commands read these defaults automatically when set:
 - `PINCER_WORKER_URL`
-- `PINCER_WORKER_NAME` (used for secret updates)
-- `PINCER_ADMIN_PASSPHRASE`
+- `PINCER_WORKER_NAME`
+- `PINCER_ADMIN_USERNAME`
+- `PINCER_ADMIN_PASSWORD`
 
-To avoid entering the passphrase repeatedly, export both vars in your shell profile:
+To avoid entering credentials repeatedly, export these vars in your shell profile:
 
 ```bash
 export PINCER_WORKER_URL="https://<your-worker>.workers.dev"
 export PINCER_WORKER_NAME="<your-worker-name>"
-export PINCER_ADMIN_PASSPHRASE="<your-admin-passphrase>"
+export PINCER_ADMIN_USERNAME="admin"
+export PINCER_ADMIN_PASSWORD="<your-admin-password>"
 ```
 
 ### `setup`
@@ -57,25 +59,24 @@ export PINCER_ADMIN_PASSPHRASE="<your-admin-passphrase>"
 What it does:
 - Checks Wrangler availability and auth.
 - Creates local `apps/pincer-worker/wrangler.toml` from `wrangler.toml.example` when missing.
-- Prompts for Worker name and admin passphrase.
-- Generates runtime key + HMAC secret.
+- Prompts for Worker name.
+- Generates runtime key + runtime HMAC secret + bootstrap token + vault KEK.
 - Writes KV config keys (`meta:version`, `runtime:active`, `adapter_registry:index`).
 - Writes Worker secrets and deploys the Worker.
-- Generates one-time pairing code for `pincer-agent connect`.
+- Prints bootstrap URL/token instructions for first admin creation in `/admin/bootstrap`.
 - Saves worker URL default to `~/.pincer/admin.json` for later admin commands.
-- Saves worker directory default so setup/secret commands can be run from other directories.
-- Saves runtime pairing material locally so additional pairing codes can be generated without rotating credentials.
 
-After setup, run the printed `pincer-agent connect ... --code ...` command on the OpenClaw host machine.
-Pairing codes are one-time use and should come from the most recent `setup` or `pairing generate` run.
+After setup:
+1. Open `/admin/bootstrap` and create the admin account.
+2. Use `pincer-admin pairing generate` (or UI) to produce a one-time connect code.
 
 ### `pairing generate`
 
-Generates a new one-time pairing code without rotating runtime credentials.
+Generates a new one-time pairing code via authenticated admin API.
 
 ### `credentials rotate`
 
-Rotates runtime key + runtime HMAC secret, writes new runtime metadata to KV, updates Worker HMAC secret, and prints a new one-time pairing command. Existing runtime credentials are invalidated immediately.
+Rotates runtime key + runtime HMAC secret via authenticated admin API and prints a new one-time pairing command. Existing runtime credentials are invalidated immediately.
 
 ### `doctor [--json]`
 
@@ -121,7 +122,7 @@ Behavior:
 - Validates manifest before apply.
 - Collects required secret inputs before confirmation.
 - Shows a summary + confirmation prompt unless `--force` is used.
-- Writes provided secret values to Worker secrets, then applies.
+- Writes provided secret values through `/v1/admin/secrets/:binding` (write-only vault API), then applies.
 - Warns when source is an external URL.
 
 ### `adapters validate --file <path> [--json]`
@@ -136,15 +137,15 @@ Disables adapter execution without deleting manifest snapshots.
 
 Re-enables a disabled adapter without re-applying a manifest.
 
-### `adapters secret set <binding> [--worker-name <name>]`
+### `adapters secret set <binding>`
 
-Updates a single Worker secret binding (useful for key rotation).
+Updates a single secret binding through the write-only admin secrets API.
 
 ## Troubleshooting
 
 - `missing_required_secrets` on apply
   - Set missing bindings via `pincer-admin adapters secret set <binding>` and re-run apply.
 - `401`/`403` on admin routes
-  - Confirm admin passphrase.
+  - Confirm `PINCER_ADMIN_USERNAME`/`PINCER_ADMIN_PASSWORD` (or interactive credentials) and active admin session policies.
 - Wrangler auth failures
   - Run `wrangler login` and retry.

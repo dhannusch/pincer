@@ -1,10 +1,15 @@
 import { listActiveAdapterStates, listActiveAdapters } from "./adapters/index.js";
 import { parseJson } from "./http.js";
 import type { RuntimeKeyRecord, RuntimeConfigSnapshot, WorkerEnv } from "./types.js";
+import {
+  DEFAULT_RUNTIME_HMAC_BINDING,
+  DEFAULT_RUNTIME_KEY_SECRET_BINDING,
+  resolveSecretValue,
+} from "./vault.js";
 
 const CONFIG_CACHE_TTL_MS = 10_000;
 
-// TODO: Keep this cache shape aligned with adapters/index.ts or extract a shared helper.
+// Keep this cache shape aligned with adapters/index.ts.
 const configCache: {
   loadedAtMs: number;
   snapshot: RuntimeConfigSnapshot | null;
@@ -35,12 +40,15 @@ function parseRuntimeRecord(raw: string | null): RuntimeKeyRecord {
     throw new Error("KV runtime:active.keyHash must be a non-empty string");
   }
 
-  if (
-    typeof candidate.hmacSecretBinding !== "string" ||
-    candidate.hmacSecretBinding.length === 0
-  ) {
-    throw new Error("KV runtime:active.hmacSecretBinding must be a non-empty string");
-  }
+  const hmacSecretBinding =
+    typeof candidate.hmacSecretBinding === "string" && candidate.hmacSecretBinding.length > 0
+      ? candidate.hmacSecretBinding
+      : DEFAULT_RUNTIME_HMAC_BINDING;
+
+  const keySecretBinding =
+    typeof candidate.keySecretBinding === "string" && candidate.keySecretBinding.length > 0
+      ? candidate.keySecretBinding
+      : DEFAULT_RUNTIME_KEY_SECRET_BINDING;
 
   const skewSeconds =
     typeof candidate.skewSeconds === "number" && Number.isFinite(candidate.skewSeconds)
@@ -50,7 +58,8 @@ function parseRuntimeRecord(raw: string | null): RuntimeKeyRecord {
   return {
     id: candidate.id,
     keyHash: candidate.keyHash,
-    hmacSecretBinding: candidate.hmacSecretBinding,
+    hmacSecretBinding,
+    keySecretBinding,
     skewSeconds,
     updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : undefined,
   };
@@ -117,15 +126,6 @@ export async function getRuntimeRecord(env: WorkerEnv): Promise<RuntimeKeyRecord
   return snapshot.runtime;
 }
 
-export function readSecretBinding(env: WorkerEnv, bindingName: string): string {
-  if (!bindingName || typeof bindingName !== "string") {
-    return "";
-  }
-
-  const value = env[bindingName];
-  return typeof value === "string" ? value : "";
-}
-
 export async function getDoctorChecks(
   env: WorkerEnv
 ): Promise<Array<{ name: string; ok: boolean; details: string }>> {
@@ -153,23 +153,36 @@ export async function getDoctorChecks(
   }
 
   checks.push({
-    name: "admin_passphrase",
-    ok: typeof env.PINCER_ADMIN_PASSPHRASE === "string" && env.PINCER_ADMIN_PASSPHRASE.length > 0,
-    details: "PINCER_ADMIN_PASSPHRASE",
+    name: "bootstrap_token",
+    ok: typeof env.PINCER_BOOTSTRAP_TOKEN === "string" && env.PINCER_BOOTSTRAP_TOKEN.length > 0,
+    details: "PINCER_BOOTSTRAP_TOKEN",
+  });
+  checks.push({
+    name: "vault_kek",
+    ok: typeof env.PINCER_VAULT_KEK === "string" && env.PINCER_VAULT_KEK.length > 0,
+    details: "PINCER_VAULT_KEK",
   });
 
   const runtime = await getRuntimeRecord(env);
   checks.push({
     name: "runtime_hmac_secret_binding",
-    ok: readSecretBinding(env, runtime.hmacSecretBinding).length > 0,
+    ok: (await resolveSecretValue(env, runtime.hmacSecretBinding)).length > 0,
     details: runtime.hmacSecretBinding,
+  });
+  checks.push({
+    name: "runtime_key_secret_binding",
+    ok: (await resolveSecretValue(env, runtime.keySecretBinding)).length > 0,
+    details: runtime.keySecretBinding,
   });
 
   const activeAdapters = await listActiveAdapters(env);
   for (const adapter of activeAdapters.filter((item) => item.enabled)) {
-    const missing = adapter.requiredSecrets.filter(
-      (bindingName) => readSecretBinding(env, bindingName).length === 0
-    );
+    const missing: string[] = [];
+    for (const bindingName of adapter.requiredSecrets) {
+      if ((await resolveSecretValue(env, bindingName)).length === 0) {
+        missing.push(bindingName);
+      }
+    }
 
     checks.push({
       name: `adapter_${adapter.adapterId}_secrets`,

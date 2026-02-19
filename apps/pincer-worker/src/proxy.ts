@@ -2,11 +2,11 @@ import { validateInputWithSchema } from "@pincerclaw/shared-types";
 
 import { authenticateRuntimeRequest } from "./auth.js";
 import { getAdapterAction } from "./adapters/index.js";
-import { readSecretBinding } from "./config.js";
 import { jsonResponse, parseJson } from "./http.js";
 import { classifyStatus, emitAnalyticsMetric } from "./metrics.js";
 import { enforceRateLimit } from "./rate-limit.js";
 import type { ProxyMetric, WorkerEnv } from "./types.js";
+import { resolveSecretValue } from "./vault.js";
 
 function coerceInputPayload(parsedBody: unknown): Record<string, unknown> | null {
   if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
@@ -29,7 +29,7 @@ function coerceInputPayload(parsedBody: unknown): Record<string, unknown> | null
   return null;
 }
 
-function buildUpstreamRequest(
+async function buildUpstreamRequest(
   adapterBaseUrl: string,
   actionSpec: {
     method: "GET" | "POST";
@@ -44,11 +44,11 @@ function buildUpstreamRequest(
   },
   input: Record<string, unknown>,
   env: WorkerEnv
-): { url: URL; requestInit: RequestInit } {
+): Promise<{ url: URL; requestInit: RequestInit }> {
   const url = new URL(actionSpec.path, adapterBaseUrl);
   const headers = new Headers();
 
-  const authSecret = readSecretBinding(env, actionSpec.auth.secretBinding);
+  const authSecret = await resolveSecretValue(env, actionSpec.auth.secretBinding);
   if (!authSecret) {
     throw new Error(`missing secret binding '${actionSpec.auth.secretBinding}'`);
   }
@@ -192,7 +192,7 @@ export async function proxyAdapterRequest({
       return jsonResponse(429, { error: rateLimit.reason });
     }
 
-    const { url, requestInit } = buildUpstreamRequest(
+    const { url, requestInit } = await buildUpstreamRequest(
       actionRef.adapter.baseUrl,
       actionRef.action,
       input,

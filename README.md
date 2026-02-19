@@ -149,11 +149,18 @@ npx wrangler login
 pincer-admin setup
 ```
 
-This bootstraps Cloudflare resources, deploys the worker, and prints a one-time pairing command. Run that command on your OpenClaw host machine.
+This bootstraps Cloudflare resources, deploys the worker, and prints `/admin/bootstrap` instructions plus a bootstrap token.
 
 ### 5. Pair the agent
 
-On your **OpenClaw host machine**:
+On your **admin machine**, complete bootstrap and generate a pairing code:
+
+```bash
+# open the printed /admin/bootstrap URL and create admin credentials first
+pincer-admin pairing generate
+```
+
+Then on your **OpenClaw host machine**:
 
 ```bash
 pincer-agent connect pincer-worker.example.workers.dev --code ABCD-1234
@@ -287,7 +294,7 @@ export PINCER_WORKER_DIR=/path/to/pincer-worker
 - `pincer-admin adapters validate --file <path> [--json]`
 - `pincer-admin adapters disable <adapter-id>`
 - `pincer-admin adapters enable <adapter-id>`
-- `pincer-admin adapters secret set <binding> [--worker-name <name>]`
+- `pincer-admin adapters secret set <binding>`
 - `pincer-agent connect <worker-host> --code <CODE>`
 - `pincer-agent call <adapter> <action> [--input '<json>' | --input-file <path>]`
 - `pincer-agent adapters list [--json]`
@@ -307,7 +314,7 @@ Windows is best-effort until explicitly promoted.
 
 - `Request failed (401/403)`
   - Run `pincer-admin doctor`.
-  - Confirm runtime key/HMAC and admin passphrase.
+  - Confirm runtime key/HMAC and admin username/password.
 - `missing_required_secrets` during apply
   - Set missing bindings via `pincer-admin adapters secret set <binding>`.
 - `No credentials found`

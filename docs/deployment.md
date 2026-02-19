@@ -26,9 +26,10 @@ pincer-admin setup
 What setup does:
 - Ensures local `wrangler.toml` exists (copies from template if missing).
 - Provisions KV for `PINCER_CONFIG_KV`.
-- Writes runtime configuration and pairing records into KV.
-- Writes Worker secrets.
+- Writes runtime configuration into KV.
+- Writes bootstrap + vault + runtime fallback Worker secrets.
 - Deploys the worker.
+- Prints `/admin/bootstrap` bootstrap instructions.
 
 ## Generate Additional Pairing Codes
 

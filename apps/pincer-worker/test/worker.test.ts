@@ -84,6 +84,7 @@ function makeEnv(overrides: Record<string, unknown> = {}, kvOverrides: KvShape =
       id: "rk_1",
       keyHash: RUNTIME_KEY_HASH,
       hmacSecretBinding: "PINCER_HMAC_SECRET_1",
+      keySecretBinding: "PINCER_RUNTIME_KEY_SECRET_1",
       skewSeconds: 60,
       updatedAt: "2026-02-15T00:00:00Z",
     }),
@@ -97,7 +98,9 @@ function makeEnv(overrides: Record<string, unknown> = {}, kvOverrides: KvShape =
   return {
     PINCER_CONFIG_KV: createKvStore(baseKv),
     PINCER_HMAC_SECRET_1: "hmac-secret",
-    PINCER_ADMIN_PASSPHRASE: "admin-pass",
+    PINCER_RUNTIME_KEY_SECRET_1: RUNTIME_SECRET,
+    PINCER_BOOTSTRAP_TOKEN: "bootstrap-token",
+    PINCER_VAULT_KEK: "vault-kek",
     PINCER_SKEW_SECONDS: "60",
     YOUTUBE_API_KEY: "youtube-key",
     ...overrides,
@@ -129,9 +132,58 @@ async function signedHeaders({
   };
 }
 
-function adminHeaders() {
+async function bootstrapAndLogin(app: ReturnType<typeof createApp>, env: Record<string, unknown>) {
+  const bootstrapResponse = await app.fetch(
+    new Request("https://example.com/v1/admin/bootstrap", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        token: "bootstrap-token",
+        username: "admin",
+        password: "correct horse battery staple",
+      }),
+    }),
+    env as never
+  );
+
+  if (bootstrapResponse.status !== 200 && bootstrapResponse.status !== 409) {
+    throw new Error(`unexpected bootstrap status ${bootstrapResponse.status}`);
+  }
+
+  const loginResponse = await app.fetch(
+    new Request("https://example.com/v1/admin/session/login", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        username: "admin",
+        password: "correct horse battery staple",
+      }),
+    }),
+    env as never
+  );
+  assert.equal(loginResponse.status, 200);
+
+  const payload = await loginResponse.json();
+  const cookie = loginResponse.headers.get("set-cookie") || "";
+  const csrfToken =
+    payload && typeof payload === "object" && typeof payload.csrfToken === "string"
+      ? payload.csrfToken
+      : "";
+
+  assert.equal(cookie.length > 0, true);
+  assert.equal(csrfToken.length > 0, true);
+
+  return { cookie, csrfToken };
+}
+
+function adminHeaders(input: { cookie: string; csrfToken?: string; mutating?: boolean }) {
   return {
-    "x-pincer-admin-passphrase": "admin-pass",
+    cookie: input.cookie,
+    ...(input.mutating ? { "x-pincer-csrf": input.csrfToken || "" } : {}),
     "content-type": "application/json",
   };
 }
@@ -216,11 +268,12 @@ test("admin can list proposals and apply proposal", async () => {
   const proposalPayload = await proposalResponse.json();
   const proposalId = proposalPayload.proposal.proposalId as string;
   assert.match(proposalId, /^pr_[0-9a-z]+_[0-9a-z]{6}$/);
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const listResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/proposals", {
       method: "GET",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie }),
     }),
     env
   );
@@ -231,7 +284,7 @@ test("admin can list proposals and apply proposal", async () => {
   const applyResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/apply", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ proposalId }),
     }),
     env
@@ -244,7 +297,7 @@ test("admin can list proposals and apply proposal", async () => {
   const auditResponse = await app.fetch(
     new Request("https://example.com/v1/admin/audit?limit=10", {
       method: "GET",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie }),
     }),
     env
   );
@@ -291,11 +344,12 @@ test("admin can reject proposal and audit includes reason + manifest", async () 
   assert.equal(proposalResponse.status, 202);
   const proposalPayload = await proposalResponse.json();
   const proposalId = proposalPayload.proposal.proposalId as string;
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const rejectResponse = await app.fetch(
     new Request(`https://example.com/v1/admin/adapters/proposals/${proposalId}/reject`, {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ reason: "malicious scope expansion" }),
     }),
     env
@@ -305,7 +359,7 @@ test("admin can reject proposal and audit includes reason + manifest", async () 
   const listResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/proposals", {
       method: "GET",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie }),
     }),
     env
   );
@@ -316,7 +370,7 @@ test("admin can reject proposal and audit includes reason + manifest", async () 
   const inspectResponse = await app.fetch(
     new Request(`https://example.com/v1/admin/adapters/proposals/${proposalId}`, {
       method: "GET",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie }),
     }),
     env
   );
@@ -325,7 +379,7 @@ test("admin can reject proposal and audit includes reason + manifest", async () 
   const auditResponse = await app.fetch(
     new Request(`https://example.com/v1/admin/audit?limit=10`, {
       method: "GET",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie }),
     }),
     env
   );
@@ -345,11 +399,12 @@ test("admin can reject proposal and audit includes reason + manifest", async () 
 test("admin apply rejects when required secrets are missing", async () => {
   const app = createApp();
   const env = makeEnv({ YOUTUBE_API_KEY: undefined });
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const response = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/apply", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ manifest: sampleManifest }),
     }),
     env
@@ -364,11 +419,12 @@ test("admin apply rejects when required secrets are missing", async () => {
 test("disable endpoint disables adapter actions", async () => {
   const app = createApp();
   const env = makeEnv();
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const applyResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/apply", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ manifest: sampleManifest }),
     }),
     env
@@ -378,7 +434,7 @@ test("disable endpoint disables adapter actions", async () => {
   const disableResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/youtube/disable", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: "{}",
     }),
     env
@@ -410,11 +466,12 @@ test("enable endpoint re-enables adapter actions", async () => {
       }),
   });
   const env = makeEnv();
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const applyResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/apply", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ manifest: sampleManifest }),
     }),
     env
@@ -424,7 +481,7 @@ test("enable endpoint re-enables adapter actions", async () => {
   const disableResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/youtube/disable", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: "{}",
     }),
     env
@@ -434,7 +491,7 @@ test("enable endpoint re-enables adapter actions", async () => {
   const enableResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/youtube/enable", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: "{}",
     }),
     env
@@ -457,11 +514,12 @@ test("enable endpoint re-enables adapter actions", async () => {
 test("proxy rejects schema-invalid input with 400 invalid_input", async () => {
   const app = createApp();
   const env = makeEnv();
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const applyResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/apply", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ manifest: sampleManifest }),
     }),
     env
@@ -489,11 +547,12 @@ test("proxy rejects schema-invalid input with 400 invalid_input", async () => {
 test("runtime adapters list returns enabled adapters only", async () => {
   const app = createApp();
   const env = makeEnv();
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const applyResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/apply", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: JSON.stringify({ manifest: sampleManifest }),
     }),
     env
@@ -517,7 +576,7 @@ test("runtime adapters list returns enabled adapters only", async () => {
   const disableResponse = await app.fetch(
     new Request("https://example.com/v1/admin/adapters/youtube/disable", {
       method: "POST",
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie, csrfToken: adminAuth.csrfToken, mutating: true }),
       body: "{}",
     }),
     env
@@ -642,10 +701,11 @@ test("admin doctor endpoint requires auth and returns checks", async () => {
 
   const unauthorized = await app.fetch(new Request("https://example.com/v1/admin/doctor"), env);
   assert.equal(unauthorized.status, 401);
+  const adminAuth = await bootstrapAndLogin(app, env);
 
   const authorized = await app.fetch(
     new Request("https://example.com/v1/admin/doctor", {
-      headers: adminHeaders(),
+      headers: adminHeaders({ cookie: adminAuth.cookie }),
     }),
     env
   );

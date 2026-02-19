@@ -20,26 +20,24 @@ import {
 import pc from "picocolors";
 
 import { sha256Hex, validateAdapterManifest, type AdapterManifest } from "@pincerclaw/shared-types";
-import {
-  buildPairingKvEntry,
-  buildRuntimeKvRecord,
-  generatePairingCode,
-} from "./model.js";
+import { AdminApiClient } from "./admin-api.js";
+import { buildRuntimeKvRecord } from "./model.js";
 
 type SetupValues = {
   workerUrl: string;
   workerName: string;
-  adminPassphrase: string;
   runtimeKeyId: string;
   runtimeKeySecret: string;
   runtimeKeyHash: string;
   runtimeHmacSecret: string;
   runtimeHmacBinding: string;
+  runtimeKeySecretBinding: string;
+  bootstrapToken: string;
+  vaultKek: string;
 };
 
 type SetupInputs = {
   workerName: string;
-  adminPassphrase: string;
 };
 
 type DoctorArgs = {
@@ -55,7 +53,9 @@ type DoctorResult = {
 
 type AdminRemoteInput = {
   workerUrl: string;
-  adminPassphrase: string;
+  username: string;
+  password: string;
+  api: AdminApiClient;
 };
 
 type ApplySource =
@@ -93,13 +93,12 @@ const WRANGLER_TOML_TEMPLATE_PATH = path.join(WORKER_DIR, "wrangler.toml.example
 const KV_BINDING = "PINCER_CONFIG_KV";
 const RUNTIME_KEY_NAME = "runtime:active";
 const RUNTIME_HMAC_BINDING = "PINCER_HMAC_SECRET_ACTIVE";
+const RUNTIME_KEY_SECRET_BINDING = "PINCER_RUNTIME_KEY_SECRET_ACTIVE";
 
 type AdminProfile = {
   workerUrl?: string;
   workerDir?: string;
   workerName?: string;
-  runtimeKey?: string;
-  runtimeHmacSecret?: string;
 };
 
 function usage() {
@@ -118,7 +117,7 @@ function usage() {
   pincer-admin adapters validate --file <path> [--json]
   pincer-admin adapters disable <adapter-id>
   pincer-admin adapters enable <adapter-id>
-  pincer-admin adapters secret set <binding> [--worker-name <name>]
+  pincer-admin adapters secret set <binding>
 `);
 }
 
@@ -279,18 +278,6 @@ function inferWorkerUrl(workerName: string, deployOutput: string): string {
   return `https://${workerName}.workers.dev`;
 }
 
-function inferWorkerNameFromUrl(workerUrl: string): string {
-  try {
-    const host = new URL(workerUrl).host;
-    if (host.endsWith(".workers.dev")) {
-      return host.slice(0, -".workers.dev".length);
-    }
-  } catch {
-    // fall through
-  }
-  return "pincer-worker";
-}
-
 function parseKvNamespaceId(output: string): string {
   const match = output.match(/id\s*=\s*"([a-f0-9]{32})"/);
   if (!match) {
@@ -369,15 +356,6 @@ async function putKvValue(
   await runWrangler(args);
 }
 
-async function kvKeyExists(key: string): Promise<boolean> {
-  try {
-    const output = await runWrangler(["kv", "key", "get", key, "--binding", KV_BINDING, "--remote"]);
-    return output.length > 0;
-  } catch {
-    return false;
-  }
-}
-
 async function readKvValue(key: string): Promise<string | null> {
   try {
     return await runWrangler(["kv", "key", "get", key, "--binding", KV_BINDING, "--remote"]);
@@ -403,13 +381,6 @@ function parseFlag(args: string[], name: string): string | null {
   return args[idx + 1];
 }
 
-type PairingGenerationInput = {
-  workerUrl: string;
-  runtimeKey: string;
-  runtimeHmacSecret: string;
-  setupContext: boolean;
-};
-
 function printTable(headers: string[], rows: string[][]): void {
   const widths = headers.map((header, col) =>
     Math.max(header.length, ...rows.map((row) => (row[col] || "").length))
@@ -422,58 +393,6 @@ function printTable(headers: string[], rows: string[][]): void {
   }
 }
 
-async function generatePairingCodeAndPrint(input: PairingGenerationInput): Promise<void> {
-  const pairingCode = generatePairingCode(randomBytes(8));
-  const pairingEntry = buildPairingKvEntry({
-    code: pairingCode,
-    workerUrl: input.workerUrl,
-    runtimeKey: input.runtimeKey,
-    hmacSecret: input.runtimeHmacSecret,
-  });
-
-  await runStage("Storing pairing code", "Pairing code stored (expires in 15 min)", async () => {
-    await putKvValue(pairingEntry.key, pairingEntry.value, { ttlSeconds: pairingEntry.ttl });
-    if (!(await kvKeyExists(pairingEntry.key))) {
-      throw new Error("Pairing code was not persisted in KV. Retry generation.");
-    }
-  });
-
-  const workerHost = input.workerUrl.replace(/^https?:\/\//, "");
-  note(
-    [
-      "Run this command on your OpenClaw host machine:",
-      `pincer-agent connect ${workerHost} --code ${pairingCode}`,
-      "",
-      "Notes:",
-      "- Pairing codes are one-time use.",
-      "- Pairing codes expire in 15 minutes.",
-      input.setupContext
-        ? "- Re-running setup rotates runtime credentials; reconnect OpenClaw hosts with the new pairing code."
-        : "- Generating a new pairing code does not rotate runtime credentials.",
-    ].join("\n"),
-    "Connect your OpenClaw host"
-  );
-}
-
-function readPairingMaterialFromProfile(): {
-  workerUrl: string;
-  runtimeKey: string;
-  runtimeHmacSecret: string;
-} {
-  const profile = loadAdminProfile();
-  if (!profile.workerUrl || !profile.runtimeKey || !profile.runtimeHmacSecret) {
-    throw new Error(
-      "Missing pairing material in ~/.pincer/admin.json. Run `pincer-admin setup` once to initialize runtime pairing credentials."
-    );
-  }
-
-  return {
-    workerUrl: profile.workerUrl,
-    runtimeKey: profile.runtimeKey,
-    runtimeHmacSecret: profile.runtimeHmacSecret,
-  };
-}
-
 async function collectSetupInputs(): Promise<SetupInputs> {
   const workerName = unwrapPrompt(
     await text({
@@ -484,25 +403,8 @@ async function collectSetupInputs(): Promise<SetupInputs> {
     })
   );
 
-  note(
-    [
-      "This is an additional secret for admin-only Worker routes (`/v1/admin/*`).",
-      "You will use it for admin adapter commands and `pincer-admin doctor`.",
-    ].join("\n"),
-    "Admin Passphrase"
-  );
-
-  const adminPassphrase = unwrapPrompt(
-    await password({
-      message: "Admin passphrase for worker admin endpoints",
-      mask: "*",
-      validate: (value) => assertNonEmpty(value, "Admin passphrase"),
-    })
-  );
-
   return {
     workerName,
-    adminPassphrase,
   };
 }
 
@@ -545,6 +447,9 @@ async function runSetup(args: string[]): Promise<void> {
     runtimeKeyHash: runtimeCreds.runtimeKeyHash,
     runtimeHmacSecret: runtimeCreds.runtimeHmacSecret,
     runtimeHmacBinding: RUNTIME_HMAC_BINDING,
+    runtimeKeySecretBinding: RUNTIME_KEY_SECRET_BINDING,
+    bootstrapToken: randomHex(24),
+    vaultKek: randomHex(32),
   };
 
   await runStage("Provisioning KV namespace", "KV namespace ready", async () => {
@@ -560,6 +465,7 @@ async function runSetup(args: string[]): Promise<void> {
           keyId: setupValues.runtimeKeyId,
           keyHash: setupValues.runtimeKeyHash,
           hmacSecretBinding: setupValues.runtimeHmacBinding,
+          keySecretBinding: setupValues.runtimeKeySecretBinding,
         })
       )
     );
@@ -570,11 +476,17 @@ async function runSetup(args: string[]): Promise<void> {
   });
 
   await runStage("Writing Worker secrets", "Worker secrets written", async () => {
-    await putSecret(setupValues.workerName, "PINCER_ADMIN_PASSPHRASE", setupValues.adminPassphrase);
+    await putSecret(setupValues.workerName, "PINCER_BOOTSTRAP_TOKEN", setupValues.bootstrapToken);
+    await putSecret(setupValues.workerName, "PINCER_VAULT_KEK", setupValues.vaultKek);
     await putSecret(
       setupValues.workerName,
       setupValues.runtimeHmacBinding,
       setupValues.runtimeHmacSecret
+    );
+    await putSecret(
+      setupValues.workerName,
+      setupValues.runtimeKeySecretBinding,
+      setupValues.runtimeKeySecret
     );
   });
 
@@ -591,26 +503,27 @@ async function runSetup(args: string[]): Promise<void> {
     workerUrl: setupValues.workerUrl,
     workerDir: WORKER_DIR,
     workerName: setupValues.workerName,
-    runtimeKey: `${setupValues.runtimeKeyId}.${setupValues.runtimeKeySecret}`,
-    runtimeHmacSecret: setupValues.runtimeHmacSecret,
-  });
-
-  await generatePairingCodeAndPrint({
-    workerUrl: setupValues.workerUrl,
-    runtimeKey: `${setupValues.runtimeKeyId}.${setupValues.runtimeKeySecret}`,
-    runtimeHmacSecret: setupValues.runtimeHmacSecret,
-    setupContext: true,
   });
 
   note(
     [
-      "Tip: set env vars to avoid repeating admin prompts in future sessions.",
+      "Complete bootstrap in your browser first:",
+      `${setupValues.workerUrl}/admin/bootstrap`,
+      "",
+      "Bootstrap token:",
+      setupValues.bootstrapToken,
+      "",
+      "After bootstrap, generate a pairing code from UI or CLI:",
+      "pincer-admin pairing generate",
+      "",
+      "Optional env vars to avoid repeated prompts:",
       `export PINCER_WORKER_URL="${setupValues.workerUrl}"`,
       `export PINCER_WORKER_NAME="${setupValues.workerName}"`,
-      "export PINCER_ADMIN_PASSPHRASE=\"<your-admin-passphrase>\"",
+      "export PINCER_ADMIN_USERNAME=\"admin\"",
+      "export PINCER_ADMIN_PASSWORD=\"<your-admin-password>\"",
       "Persist them in your shell profile (for example ~/.zshrc).",
     ].join("\n"),
-    "Optional Admin Defaults"
+    "Next Steps"
   );
 
   outro(pc.green("Pincer is ready."));
@@ -618,39 +531,34 @@ async function runSetup(args: string[]): Promise<void> {
 
 async function runPairingGenerate(): Promise<void> {
   intro(pc.bold(pc.cyan("Pincer pairing generate")));
-  ensureWorkerDir();
-  ensureWranglerConfigFile();
+  const remote = await collectAdminRemoteInput();
 
-  const pairing = readPairingMaterialFromProfile();
-  await generatePairingCodeAndPrint({
-    ...pairing,
-    setupContext: false,
-  });
+  const payload = (await runStage("Generating pairing code", "Pairing code generated", async () =>
+    (await requestAdminJson(remote, "POST", "/v1/admin/pairing/generate", {})) as {
+      ok: boolean;
+      code: string;
+      expiresInSeconds: number;
+    }
+  )) as { ok: boolean; code: string; expiresInSeconds: number };
+
+  const workerHost = remote.workerUrl.replace(/^https?:\/\//, "");
+  note(
+    [
+      "Run this command on your OpenClaw host machine:",
+      `pincer-agent connect ${workerHost} --code ${payload.code}`,
+      "",
+      `Expires in: ${payload.expiresInSeconds} seconds`,
+      "Pairing codes are one-time use.",
+    ].join("\n"),
+    "Connect your OpenClaw host"
+  );
 
   outro(pc.green("Done."));
 }
 
 async function runCredentialsRotate(): Promise<void> {
   intro(pc.bold(pc.cyan("Pincer credentials rotate")));
-  ensureWorkerDir();
-  ensureWranglerConfigFile();
-
   const remote = await collectAdminRemoteInput();
-  const profile = loadAdminProfile();
-  const workerNameFromEnv = (process.env.PINCER_WORKER_NAME || "").trim();
-  const workerNameFromProfile = (profile.workerName || "").trim();
-  const inferredWorkerName = inferWorkerNameFromUrl(remote.workerUrl).trim();
-  const workerName =
-    workerNameFromEnv ||
-    workerNameFromProfile ||
-    inferredWorkerName ||
-    unwrapPrompt(
-      await text({
-        message: "Worker name",
-        defaultValue: "pincer-worker",
-        validate: (value) => assertNonEmpty(value, "Worker name"),
-      })
-    );
 
   note(
     [
@@ -673,62 +581,27 @@ async function runCredentialsRotate(): Promise<void> {
     return;
   }
 
-  const runtimeCreds = await runStage(
-    "Generating runtime credentials",
-    "Runtime credentials generated",
-    async () => {
-      const runtimeKeyId = `rk_${randomHex(8)}`;
-      const runtimeKeySecret = randomHex(24);
-      const runtimeKeyHash = await sha256Hex(runtimeKeySecret);
-      const runtimeHmacSecret = randomHex(32);
-      return {
-        runtimeKeyId,
-        runtimeKeySecret,
-        runtimeKeyHash,
-        runtimeHmacSecret,
-      };
+  await runStage("Rotating runtime credentials", "Runtime credentials rotated", async () => {
+    await requestAdminJson(remote, "POST", "/v1/admin/runtime/rotate", {});
+  });
+
+  const pairing = (await runStage("Generating pairing code", "Pairing code generated", async () =>
+    (await requestAdminJson(remote, "POST", "/v1/admin/pairing/generate", {})) as {
+      ok: boolean;
+      code: string;
+      expiresInSeconds: number;
     }
-  );
+  )) as { ok: boolean; code: string; expiresInSeconds: number };
 
-  await runStage("Writing runtime key metadata", "Runtime key metadata written", async () => {
-    await putKvValue(
-      RUNTIME_KEY_NAME,
-      JSON.stringify(
-        buildRuntimeKvRecord({
-          keyId: runtimeCreds.runtimeKeyId,
-          keyHash: runtimeCreds.runtimeKeyHash,
-          hmacSecretBinding: RUNTIME_HMAC_BINDING,
-        })
-      )
-    );
-  });
-
-  await runStage("Writing runtime HMAC secret", "Runtime HMAC secret written", async () => {
-    await putSecret(workerName, RUNTIME_HMAC_BINDING, runtimeCreds.runtimeHmacSecret);
-  });
-
-  const nextRuntimeKey = `${runtimeCreds.runtimeKeyId}.${runtimeCreds.runtimeKeySecret}`;
-  saveAdminProfile({
-    ...profile,
-    workerUrl: remote.workerUrl,
-    workerDir: WORKER_DIR,
-    workerName,
-    runtimeKey: nextRuntimeKey,
-    runtimeHmacSecret: runtimeCreds.runtimeHmacSecret,
-  });
-
-  await generatePairingCodeAndPrint({
-    workerUrl: remote.workerUrl,
-    runtimeKey: nextRuntimeKey,
-    runtimeHmacSecret: runtimeCreds.runtimeHmacSecret,
-    setupContext: false,
-  });
+  const workerHost = remote.workerUrl.replace(/^https?:\/\//, "");
 
   note(
     [
       "Rotation complete.",
       "Any previously issued runtime credentials are now invalid.",
-      "Use the new pairing code above to reconnect agent hosts.",
+      "Reconnect agent hosts with:",
+      `pincer-agent connect ${workerHost} --code ${pairing.code}`,
+      `Pairing code expires in ${pairing.expiresInSeconds} seconds.`,
     ].join("\n"),
     "Rotation Result"
   );
@@ -783,57 +656,58 @@ async function collectAdminRemoteInput(): Promise<AdminRemoteInput> {
     ...(workerName ? { workerName } : {}),
   });
 
-  const passphraseFromEnv = (process.env.PINCER_ADMIN_PASSPHRASE || "").trim();
-  const adminPassphrase =
-    passphraseFromEnv.length > 0
-      ? passphraseFromEnv
+  const usernameFromEnv = (process.env.PINCER_ADMIN_USERNAME || "").trim();
+  const passwordFromEnv = (process.env.PINCER_ADMIN_PASSWORD || "").trim();
+  if (!isInteractive && usernameFromEnv.length === 0) {
+    throw new Error("Admin username is required in non-interactive mode. Set PINCER_ADMIN_USERNAME.");
+  }
+  if (!isInteractive && passwordFromEnv.length === 0) {
+    throw new Error("Admin password is required in non-interactive mode. Set PINCER_ADMIN_PASSWORD.");
+  }
+
+  const username =
+    usernameFromEnv.length > 0
+      ? usernameFromEnv
       : unwrapPrompt(
-          await password({
-            message: "Admin passphrase",
-            mask: "*",
-            validate: (value) => assertNonEmpty(value, "Admin passphrase"),
+          await text({
+            message: "Admin username",
+            defaultValue: "admin",
+            validate: (value) => assertNonEmpty(value, "Admin username"),
           })
         );
 
+  const passwordValue =
+    passwordFromEnv.length > 0
+      ? passwordFromEnv
+      : unwrapPrompt(
+          await password({
+            message: "Admin password",
+            mask: "*",
+            validate: (value) => assertNonEmpty(value, "Admin password"),
+          })
+        );
+
+  const api = new AdminApiClient({
+    workerUrl,
+    username,
+    password: passwordValue,
+  });
+
   return {
     workerUrl,
-    adminPassphrase,
-  };
-}
-
-function buildAdminHeaders(input: AdminRemoteInput): Record<string, string> {
-  return {
-    "x-pincer-admin-passphrase": input.adminPassphrase,
-    "content-type": "application/json",
+    username,
+    password: passwordValue,
+    api,
   };
 }
 
 async function requestAdminJson(
   input: AdminRemoteInput,
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PUT" | "DELETE",
   pathName: string,
   payload?: unknown
 ): Promise<unknown> {
-  const url = new URL(pathName, input.workerUrl);
-  const response = await fetch(url, {
-    method,
-    headers: buildAdminHeaders(input),
-    body: method === "POST" ? JSON.stringify(payload || {}) : undefined,
-  });
-
-  const text = await response.text();
-  let parsed: unknown = null;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = text;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status}): ${JSON.stringify(parsed)}`);
-  }
-
-  return parsed;
+  return input.api.request(method, pathName, payload);
 }
 
 async function requestDoctorReport(input: AdminRemoteInput): Promise<DoctorResult> {
@@ -989,7 +863,6 @@ function printManifestSummary(input: {
   manifest: AdapterManifest;
   sourceLabel: string;
   sourceKind: "proposal" | "file" | "url";
-  workerName?: string;
   secretsToWrite: number;
 }): void {
   const lines = [
@@ -1005,10 +878,7 @@ function printManifestSummary(input: {
     lines.push("WARNING: Source is an external URL. Verify domain and manifest content before applying.");
   }
 
-  if (input.workerName) {
-    lines.push(`Worker for secret updates: ${input.workerName}`);
-    lines.push(`Secret values provided this run: ${input.secretsToWrite}`);
-  }
+  lines.push(`Secret values provided this run: ${input.secretsToWrite}`);
 
   note(
     lines.join("\n"),
@@ -1045,10 +915,12 @@ async function promptSecretValues(manifest: AdapterManifest): Promise<Record<str
   return values;
 }
 
-async function writeSecretValues(workerName: string, values: Record<string, string>): Promise<void> {
+async function writeSecretValues(remote: AdminRemoteInput, values: Record<string, string>): Promise<void> {
   for (const [binding, value] of Object.entries(values)) {
     await runStage(`Writing secret ${binding}`, `Secret ${binding} written`, async () => {
-      await putSecret(workerName, binding, value);
+      await requestAdminJson(remote, "PUT", `/v1/admin/secrets/${encodeURIComponent(binding)}`, {
+        value,
+      });
     });
   }
 }
@@ -1099,26 +971,8 @@ async function runApplyFlow(input: {
   applyPayload: Record<string, unknown>;
   force: boolean;
 }): Promise<boolean> {
-  let workerName: string | undefined;
   let secretValues: Record<string, string> = {};
   if (input.manifest.requiredSecrets.length > 0) {
-    const profile = loadAdminProfile();
-    const workerNameFromEnv = (process.env.PINCER_WORKER_NAME || "").trim();
-    const workerNameFromProfile = (profile.workerName || "").trim();
-    workerName =
-      workerNameFromEnv || workerNameFromProfile || inferWorkerNameFromUrl(input.remote.workerUrl);
-    if (!workerName) {
-      throw new Error(
-        [
-          "Worker name is required for secret updates.",
-          "Set PINCER_WORKER_NAME, run setup once, or provide a valid PINCER_WORKER_URL that can be inferred.",
-        ].join(" ")
-      );
-    }
-    saveAdminProfile({
-      ...profile,
-      workerName,
-    });
     secretValues = await promptSecretValues(input.manifest);
   }
 
@@ -1126,7 +980,6 @@ async function runApplyFlow(input: {
     manifest: input.manifest,
     sourceLabel: input.sourceLabel,
     sourceKind: input.sourceKind,
-    workerName,
     secretsToWrite: Object.keys(secretValues).length,
   });
 
@@ -1144,8 +997,8 @@ async function runApplyFlow(input: {
     }
   }
 
-  if (workerName) {
-    await writeSecretValues(workerName, secretValues);
+  if (Object.keys(secretValues).length > 0) {
+    await writeSecretValues(input.remote, secretValues);
   }
 
   const applyResponse = (await runStage("Applying adapter", "Adapter applied", async () =>
@@ -1592,53 +1445,12 @@ async function runAdaptersEnable(args: string[]): Promise<void> {
 
 async function runAdaptersSecretSet(args: string[]): Promise<void> {
   intro(pc.bold(pc.cyan("Pincer adapters secret set")));
-  ensureWorkerDir();
-  ensureWranglerConfigFile();
+  const remote = await collectAdminRemoteInput();
 
   const binding = args.find((arg) => !arg.startsWith("--"));
   if (!binding) {
-    throw new Error("Usage: pincer-admin adapters secret set <binding> [--worker-name <name>]");
+    throw new Error("Usage: pincer-admin adapters secret set <binding>");
   }
-
-  const profile = loadAdminProfile();
-  const workerNameFromFlag = (parseFlag(args, "--worker-name") || "").trim();
-  const workerNameFromEnv = (process.env.PINCER_WORKER_NAME || "").trim();
-  const workerNameFromProfile = (profile.workerName || "").trim();
-  const workerUrlFromEnv = (process.env.PINCER_WORKER_URL || "").trim();
-  const workerUrlFromProfile = (profile.workerUrl || "").trim();
-  const inferredWorkerName = (() => {
-    const sourceUrl = workerUrlFromEnv || workerUrlFromProfile;
-    if (!sourceUrl) {
-      return "";
-    }
-    try {
-      const host = new URL(sourceUrl).host;
-      if (host.endsWith(".workers.dev")) {
-        return host.slice(0, -".workers.dev".length);
-      }
-    } catch {
-      // fall through
-    }
-    return "";
-  })();
-
-  const resolvedWorkerName =
-    workerNameFromFlag || workerNameFromEnv || workerNameFromProfile || inferredWorkerName;
-
-  const workerName =
-    resolvedWorkerName ||
-    unwrapPrompt(
-      await text({
-        message: "Worker name",
-        defaultValue: "pincer-worker",
-        validate: (value) => assertNonEmpty(value, "Worker name"),
-      })
-    );
-
-  saveAdminProfile({
-    ...profile,
-    workerName,
-  });
 
   const value = unwrapPrompt(
     await password({
@@ -1649,7 +1461,9 @@ async function runAdaptersSecretSet(args: string[]): Promise<void> {
   );
 
   await runStage(`Writing ${binding}`, `${binding} updated`, async () => {
-    await putSecret(workerName, binding, value);
+    await requestAdminJson(remote, "PUT", `/v1/admin/secrets/${encodeURIComponent(binding)}`, {
+      value,
+    });
   });
 
   outro(pc.green("Done."));
@@ -1684,7 +1498,7 @@ async function runAdapters(args: string[]): Promise<void> {
   }
 
   if (subcommand === "secret") {
-    throw new Error("Usage: pincer-admin adapters secret set <binding> [--worker-name <name>]");
+    throw new Error("Usage: pincer-admin adapters secret set <binding>");
   }
 
   if (subcommand === "validate") {
