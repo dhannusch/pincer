@@ -40,7 +40,7 @@
     "release:check": "npm run oss:guard && npm run typecheck && npm test"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260208.0",
+    "@cloudflare/workers-types": "^4.20260304.0",
     "@types/node": "^22.13.10",
     "tsx": "^4.20.5",
     "typescript": "^5.8.2",
